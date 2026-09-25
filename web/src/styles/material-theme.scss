@@ -1,0 +1,117 @@
+@use '@angular/material' as mat;
+
+@include mat.core();
+
+// Bog'cham palitrasi — 7.1-bo'limdagi asosiy ranglarga moslashtirilgan.
+$bogcha-primary-palette: (
+  50: #e9f1fe,
+  100: #c7dcfc,
+  200: #a2c5fa,
+  300: #7cadf8,
+  400: #609bf7,
+  500: #4f8ef7,
+  600: #4880e0,
+  700: #2e6bd6,
+  800: #2a5cb8,
+  900: #234a92,
+  contrast: (
+    50: rgba(black, 0.87),
+    100: rgba(black, 0.87),
+    200: rgba(black, 0.87),
+    300: rgba(black, 0.87),
+    400: white,
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+  ),
+);
+
+$bogcha-accent-palette: (
+  50: #fff7e9,
+  100: #ffe9c2,
+  200: #ffda97,
+  300: #ffcb6b,
+  400: #ffbf4a,
+  500: #ffb020,
+  600: #f5a51c,
+  700: #e89717,
+  800: #db8912,
+  900: #c56f0a,
+  contrast: (
+    50: rgba(black, 0.87),
+    100: rgba(black, 0.87),
+    200: rgba(black, 0.87),
+    300: rgba(black, 0.87),
+    400: rgba(black, 0.87),
+    500: rgba(black, 0.87),
+    600: rgba(black, 0.87),
+    700: rgba(black, 0.87),
+    800: white,
+    900: white,
+  ),
+);
+
+$bogcha-warn-palette: (
+  50: #fdeceb,
+  100: #f9cfcc,
+  200: #f4aeab,
+  300: #ef8d89,
+  400: #ea746e,
+  500: #e5484d,
+  600: #e14650,
+  700: #db3f4a,
+  800: #d53943,
+  900: #cb2c34,
+  contrast: (
+    50: rgba(black, 0.87),
+    100: rgba(black, 0.87),
+    200: rgba(black, 0.87),
+    300: rgba(black, 0.87),
+    400: white,
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+  ),
+);
+
+$bogcha-primary: mat.m2-define-palette($bogcha-primary-palette, 500);
+$bogcha-accent: mat.m2-define-palette($bogcha-accent-palette, 500);
+$bogcha-warn: mat.m2-define-palette($bogcha-warn-palette, 500);
+
+$bogcha-light-theme: mat.m2-define-light-theme(
+  (
+    color: (
+      primary: $bogcha-primary,
+      accent: $bogcha-accent,
+      warn: $bogcha-warn,
+    ),
+    typography: mat.m2-define-typography-config($font-family: 'Inter, "Segoe UI", system-ui, sans-serif'),
+    density: 0,
+  )
+);
+
+$bogcha-dark-theme: mat.m2-define-dark-theme(
+  (
+    color: (
+      primary: $bogcha-primary,
+      accent: $bogcha-accent,
+      warn: $bogcha-warn,
+    ),
+  )
+);
+
+@include mat.all-component-themes($bogcha-light-theme);
+
+:root[data-theme='dark'] {
+  @include mat.all-component-colors($bogcha-dark-theme);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    @include mat.all-component-colors($bogcha-dark-theme);
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start", "--prefix", "web"],
+      "port": 4200
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start:dev", "--prefix", "api"],
+      "port": 3000
+    },
+    {
+      "name": "static-preview",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8899"],
+      "port": 8899
+    }
+  ]
+}

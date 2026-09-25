@@ -1,0 +1,1090 @@
+// "Bog'cham" — xususiy bog'chalar uchun boshqaruv tizimi
+// To'liq ma'lumotlar bazasi sxemasi (Texnik topshiriq, 3-bo'lim)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =========================================================================
+// 3.1 TASHKILIY TUZILMA
+// =========================================================================
+
+enum TenantStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+model Tenant {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  logoUrl     String?
+  phone       String
+  email       String?
+  address     String?
+  timezone    String       @default("Asia/Tashkent")
+  currency    String       @default("UZS")
+  locale      String       @default("uz")
+  status      TenantStatus @default(TRIAL)
+  trialEndsAt DateTime?
+  settings    Json         @default("{}")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
+  branches      Branch[]
+  groups        Group[]
+  users         User[]
+  children      Child[]
+  attendances   Attendance[]
+  dailyPosts    DailyPost[]
+  menuDays      MenuDay[]
+  healthRecords HealthRecord[]
+  threads       Thread[]
+  announcements Announcement[]
+  tariffs       Tariff[]
+  invoices      Invoice[]
+  payments      Payment[]
+  cameras       Camera[]
+  cameraLogs    CameraAccessLog[]
+  curriculums   CurriculumPlan[]
+  milestones    Milestone[]
+  media         Media[]
+  documents     Document[]
+  waitlists     Waitlist[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  calendarEvents CalendarEvent[]
+  subscription  Subscription?
+
+  @@map("tenants")
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  address   String
+  phone     String
+  workDays  Int[]
+  openTime  String
+  closeTime String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  groups   Group[]
+  children Child[]
+  cameras  Camera[]
+  menuDays MenuDay[]
+  announcements Announcement[]
+  calendarEvents CalendarEvent[]
+  waitlists Waitlist[]
+
+  @@index([tenantId])
+  @@map("branches")
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  tenantId  String
+  branchId  String
+  name      String
+  ageMin    Int
+  ageMax    Int
+  capacity  Int
+  colorHex  String   @default("#4F8EF7")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch   Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  teachers GroupTeacher[]
+  children Child[]
+  attendances Attendance[]
+  dailyPosts  DailyPost[]
+  cameras     Camera[]
+  curriculums CurriculumPlan[]
+  announcements Announcement[]
+  waitlists   Waitlist[]
+
+  @@index([tenantId, branchId])
+  @@map("groups")
+}
+
+model GroupTeacher {
+  id      String  @id @default(cuid())
+  groupId String
+  userId  String
+  isMain  Boolean @default(false)
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@map("group_teachers")
+}
+
+// =========================================================================
+// 3.2 FOYDALANUVCHILAR
+// =========================================================================
+
+enum Role {
+  SUPER_ADMIN
+  OWNER
+  ADMIN
+  TEACHER
+  NURSE
+  COOK
+  PARENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  BLOCKED
+}
+
+model User {
+  id               String     @id @default(cuid())
+  tenantId         String?
+  fullName         String
+  phone            String
+  email            String?
+  passwordHash     String?
+  role             Role
+  avatarUrl        String?
+  locale           String     @default("uz")
+  status           UserStatus @default(ACTIVE)
+  lastLoginAt      DateTime?
+  pushTokens       String[]
+  telegramChatId   String?
+  twoFactorEnabled Boolean    @default(false)
+  twoFactorSecret  String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  deletedAt        DateTime?
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  staffProfile       StaffProfile?
+  staffAttendances   StaffAttendance[]
+  groupTeacherLinks  GroupTeacher[]
+  guardianLinks      Guardian[]
+  authoredPosts      DailyPost[]        @relation("PostAuthor")
+  healthRecordsMade  HealthRecord[]     @relation("HealthAuthor")
+  threadParticipants ThreadParticipant[]
+  sentMessages       Message[]          @relation("MessageSender")
+  authoredAnnouncements Announcement[]  @relation("AnnouncementAuthor")
+  announcementReads  AnnouncementRead[]
+  receivedPayments   Payment[]          @relation("PaymentReceiver")
+  cameraAccessLogs   CameraAccessLog[]
+  authoredCurriculums CurriculumPlan[]  @relation("CurriculumAuthor")
+  assessedMilestones Milestone[]        @relation("MilestoneAssessor")
+  uploadedMedia      Media[]            @relation("MediaUploader")
+  documents          Document[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  refreshTokens      RefreshToken[]
+  otpCodes           OtpCode[]
+
+  @@unique([tenantId, phone])
+  @@index([tenantId, role])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model OtpCode {
+  id          String   @id @default(cuid())
+  userId      String?
+  phone       String
+  codeHash    String
+  attempts    Int      @default(0)
+  maxAttempts Int      @default(3)
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  blockedUntil DateTime?
+  createdAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([phone])
+  @@map("otp_codes")
+}
+
+enum SalaryType {
+  FIXED
+  HOURLY
+}
+
+model StaffProfile {
+  id           String     @id @default(cuid())
+  userId       String     @unique
+  position     String
+  hireDate     DateTime
+  salaryType   SalaryType @default(FIXED)
+  salaryAmount Decimal    @db.Decimal(14, 2)
+  documents    Json?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("staff_profiles")
+}
+
+model StaffAttendance {
+  id        String    @id @default(cuid())
+  userId    String
+  date      DateTime  @db.Date
+  checkIn   DateTime?
+  checkOut  DateTime?
+  note      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@map("staff_attendances")
+}
+
+// =========================================================================
+// 3.3 BOLALAR VA OTA-ONALAR
+// =========================================================================
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum ChildStatus {
+  ACTIVE
+  PAUSED
+  LEFT
+  WAITLIST
+}
+
+model Child {
+  id           String      @id @default(cuid())
+  tenantId     String
+  branchId     String
+  groupId      String?
+  firstName    String
+  lastName     String
+  middleName   String?
+  birthDate    DateTime    @db.Date
+  gender       Gender
+  photoUrl     String?
+  address      String?
+  birthCertNo  String?
+  bloodType    String?
+  specialNotes String?
+  status       ChildStatus @default(ACTIVE)
+  enrolledAt   DateTime
+  leftAt       DateTime?
+  leftReason   String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  deletedAt    DateTime?
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  group  Group?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  guardians      Guardian[]
+  pickupPersons  PickupPerson[]
+  allergies      Allergy[]
+  attendances    Attendance[]
+  dailyPosts     DailyPost[]
+  mealLogs       MealLog[]
+  napLogs        NapLog[]
+  healthRecords  HealthRecord[]
+  threads        Thread[]
+  childTariffs   ChildTariff[]
+  invoices       Invoice[]
+  payments       Payment[]
+  milestones     Milestone[]
+  documents      Document[]
+  announcements  Announcement[] @relation("AnnouncementChild")
+
+  @@index([tenantId, groupId, status])
+  @@index([tenantId, branchId])
+  @@map("children")
+}
+
+model Guardian {
+  id        String  @id @default(cuid())
+  childId   String
+  userId    String
+  relation  String
+  isPrimary Boolean @default(false)
+  canPickup Boolean @default(true)
+  canPay    Boolean @default(true)
+  createdAt DateTime @default(now())
+
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, userId])
+  @@index([userId])
+  @@map("guardians")
+}
+
+model PickupPerson {
+  id        String  @id @default(cuid())
+  childId   String
+  fullName  String
+  phone     String
+  relation  String
+  photoUrl  String?
+  docNumber String?
+  isActive  Boolean @default(true)
+  createdAt DateTime @default(now())
+
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  attendanceCheckouts Attendance[] @relation("PickupPersonAttendance")
+
+  @@index([childId])
+  @@map("pickup_persons")
+}
+
+enum AllergySeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Allergy {
+  id       String          @id @default(cuid())
+  childId  String
+  title    String
+  severity AllergySeverity
+  reaction String?
+  note     String?
+  createdAt DateTime @default(now())
+
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([childId])
+  @@map("allergies")
+}
+
+// =========================================================================
+// 3.4 DAVOMAT
+// =========================================================================
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  SICK
+  VACATION
+}
+
+model Attendance {
+  id            String           @id @default(cuid())
+  tenantId      String
+  childId       String
+  groupId       String
+  date          DateTime         @db.Date
+  status        AttendanceStatus
+  checkInAt     DateTime?
+  checkOutAt    DateTime?
+  checkedInById String?
+  checkOutToId  String?
+  absenceReason String?
+  note          String?
+  temperature   Decimal?         @db.Decimal(4, 1)
+  clientRequestId String?        @unique
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  child        Child         @relation(fields: [childId], references: [id], onDelete: Cascade)
+  group        Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  checkOutTo   PickupPerson? @relation("PickupPersonAttendance", fields: [checkOutToId], references: [id])
+
+  @@unique([childId, date])
+  @@index([tenantId, date, groupId])
+  @@map("attendances")
+}
+
+// =========================================================================
+// 3.5 KUNLIK LENTA VA KUNDALIK HAYOT
+// =========================================================================
+
+enum PostType {
+  PHOTO
+  VIDEO
+  TEXT
+  ACTIVITY
+  MOOD
+}
+
+enum Mood {
+  HAPPY
+  CALM
+  TIRED
+  UPSET
+}
+
+model DailyPost {
+  id          String   @id @default(cuid())
+  tenantId    String
+  groupId     String
+  childId     String?
+  authorId    String
+  type        PostType
+  title       String?
+  body        String?
+  mediaIds    String[]
+  activityTag String?
+  mood        Mood?
+  postedAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  group  Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  child  Child? @relation(fields: [childId], references: [id], onDelete: Cascade)
+  author User   @relation("PostAuthor", fields: [authorId], references: [id])
+
+  @@index([tenantId, groupId, postedAt])
+  @@index([childId])
+  @@map("daily_posts")
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  SNACK
+  DINNER
+}
+
+enum MealAmount {
+  ALL
+  HALF
+  LITTLE
+  NONE
+}
+
+model MealLog {
+  id        String     @id @default(cuid())
+  childId   String
+  date      DateTime   @db.Date
+  mealType  MealType
+  amount    MealAmount
+  note      String?
+  createdAt DateTime   @default(now())
+
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, date, mealType])
+  @@map("meal_logs")
+}
+
+enum NapQuality {
+  GOOD
+  RESTLESS
+  DID_NOT_SLEEP
+}
+
+model NapLog {
+  id        String      @id @default(cuid())
+  childId   String
+  date      DateTime    @db.Date
+  startedAt DateTime?
+  endedAt   DateTime?
+  quality   NapQuality?
+  note      String?
+  createdAt DateTime    @default(now())
+
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([childId, date])
+  @@map("nap_logs")
+}
+
+model MenuDay {
+  id        String   @id @default(cuid())
+  tenantId  String
+  branchId  String
+  date      DateTime @db.Date
+  mealType  MealType
+  dishes    Json
+  photoUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, date, mealType])
+  @@map("menu_days")
+}
+
+// =========================================================================
+// 3.6 SOG'LIQ
+// =========================================================================
+
+enum HealthType {
+  TEMPERATURE
+  MEDICATION
+  INCIDENT
+  SYMPTOM
+  VACCINE
+}
+
+model HealthRecord {
+  id             String     @id @default(cuid())
+  tenantId       String
+  childId        String
+  type           HealthType
+  value          String?
+  title          String
+  description    String?
+  severity       String?
+  mediaIds       String[]
+  parentNotified Boolean    @default(false)
+  createdById    String
+  occurredAt     DateTime   @default(now())
+  createdAt      DateTime   @default(now())
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  child     Child  @relation(fields: [childId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("HealthAuthor", fields: [createdById], references: [id])
+
+  @@index([tenantId, childId, occurredAt])
+  @@map("health_records")
+}
+
+// =========================================================================
+// 3.7 MULOQOT
+// =========================================================================
+
+enum ThreadType {
+  DIRECT
+  GROUP
+  SUPPORT
+}
+
+model Thread {
+  id            String     @id @default(cuid())
+  tenantId      String
+  type          ThreadType
+  subject       String?
+  childId       String?
+  lastMessageAt DateTime?
+  createdAt     DateTime   @default(now())
+
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  child        Child?              @relation(fields: [childId], references: [id], onDelete: SetNull)
+  participants ThreadParticipant[]
+  messages     Message[]
+
+  @@index([tenantId, lastMessageAt])
+  @@map("threads")
+}
+
+model ThreadParticipant {
+  id         String    @id @default(cuid())
+  threadId   String
+  userId     String
+  lastReadAt DateTime?
+  isMuted    Boolean   @default(false)
+
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, userId])
+  @@index([userId])
+  @@map("thread_participants")
+}
+
+model Message {
+  id        String    @id @default(cuid())
+  threadId  String
+  senderId  String
+  body      String?
+  mediaIds  String[]
+  sentAt    DateTime  @default(now())
+  editedAt  DateTime?
+  deletedAt DateTime?
+
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender User   @relation("MessageSender", fields: [senderId], references: [id])
+
+  @@index([threadId, sentAt])
+  @@map("messages")
+}
+
+model Announcement {
+  id         String   @id @default(cuid())
+  tenantId   String
+  branchId   String?
+  groupId    String?
+  authorId   String
+  title      String
+  body       String
+  mediaIds   String[]
+  isPinned   Boolean  @default(false)
+  publishAt  DateTime @default(now())
+  expiresAt  DateTime?
+  createdAt  DateTime @default(now())
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  group  Group?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  author User    @relation("AnnouncementAuthor", fields: [authorId], references: [id])
+  reads  AnnouncementRead[]
+  childRecipients Child[] @relation("AnnouncementChild")
+
+  @@index([tenantId, publishAt])
+  @@map("announcements")
+}
+
+model AnnouncementRead {
+  id             String   @id @default(cuid())
+  announcementId String
+  userId         String
+  readAt         DateTime @default(now())
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@map("announcement_reads")
+}
+
+// =========================================================================
+// 3.8 MOLIYA
+// =========================================================================
+
+model Tariff {
+  id                 String  @id @default(cuid())
+  tenantId           String
+  name               String
+  monthlyAmount      Decimal @db.Decimal(14, 2)
+  includesMeals      Boolean @default(true)
+  siblingDiscountPct Int     @default(0)
+  isActive           Boolean @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  childTariffs ChildTariff[]
+
+  @@index([tenantId])
+  @@map("tariffs")
+}
+
+model ChildTariff {
+  id            String    @id @default(cuid())
+  childId       String
+  tariffId      String
+  customAmount  Decimal?  @db.Decimal(14, 2)
+  discountPct   Int       @default(0)
+  discountNote  String?
+  validFrom     DateTime  @db.Date
+  validTo       DateTime? @db.Date
+  createdAt     DateTime  @default(now())
+
+  child  Child  @relation(fields: [childId], references: [id], onDelete: Cascade)
+  tariff Tariff @relation(fields: [tariffId], references: [id], onDelete: Cascade)
+
+  @@index([childId])
+  @@map("child_tariffs")
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  tenantId    String
+  childId     String
+  number      String
+  period      String
+  baseAmount  Decimal       @db.Decimal(14, 2)
+  discount    Decimal       @db.Decimal(14, 2) @default(0)
+  extras      Json?
+  penalty     Decimal       @db.Decimal(14, 2) @default(0)
+  totalAmount Decimal       @db.Decimal(14, 2)
+  paidAmount  Decimal       @db.Decimal(14, 2) @default(0)
+  dueDate     DateTime      @db.Date
+  status      InvoiceStatus @default(UNPAID)
+  issuedAt    DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  child    Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId, status, dueDate])
+  @@index([childId])
+  @@map("invoices")
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  PAYME
+  CLICK
+  TRANSFER
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+model Payment {
+  id           String        @id @default(cuid())
+  tenantId     String
+  invoiceId    String?
+  childId      String
+  amount       Decimal       @db.Decimal(14, 2)
+  method       PaymentMethod
+  paidAt       DateTime      @default(now())
+  receiptNo    String?
+  externalId   String?
+  receivedById String?
+  note         String?
+  status       PaymentStatus @default(COMPLETED)
+  createdAt    DateTime      @default(now())
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice    Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  child      Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  receivedBy User?    @relation("PaymentReceiver", fields: [receivedById], references: [id])
+
+  @@index([tenantId, paidAt])
+  @@index([externalId])
+  @@map("payments")
+}
+
+model PaymentWebhookLog {
+  id         String   @id @default(cuid())
+  provider   String
+  transactionId String
+  payload    Json
+  responseCode String?
+  createdAt  DateTime @default(now())
+
+  @@index([provider, transactionId])
+  @@map("payment_webhook_logs")
+}
+
+// =========================================================================
+// 3.9 KAMERALAR
+// =========================================================================
+
+enum CameraStatus {
+  ONLINE
+  OFFLINE
+  ERROR
+}
+
+model Camera {
+  id               String       @id @default(cuid())
+  tenantId         String
+  branchId         String
+  groupId          String?
+  name             String
+  rtspUrlEncrypted String
+  streamKey        String       @unique
+  status           CameraStatus @default(OFFLINE)
+  visibleToParents Boolean      @default(false)
+  schedule         Json
+  maxViewMinutes   Int          @default(15)
+  lastSeenAt       DateTime?
+  sortOrder        Int          @default(0)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  tenant     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch     Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  group      Group?            @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  accessLogs CameraAccessLog[]
+
+  @@index([tenantId, branchId])
+  @@map("cameras")
+}
+
+model CameraAccessLog {
+  id        String    @id @default(cuid())
+  tenantId  String
+  cameraId  String
+  userId    String
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  ipAddress String?
+  userAgent String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  camera Camera @relation(fields: [cameraId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, cameraId, startedAt])
+  @@map("camera_access_logs")
+}
+
+// =========================================================================
+// 3.10 TA'LIM VA RIVOJLANISH
+// =========================================================================
+
+model CurriculumPlan {
+  id                   String   @id @default(cuid())
+  tenantId             String
+  groupId              String
+  weekStart            DateTime @db.Date
+  theme                String
+  activities           Json
+  authorId             String
+  isPublishedToParents Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  group  Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author User   @relation("CurriculumAuthor", fields: [authorId], references: [id])
+
+  @@index([tenantId, groupId, weekStart])
+  @@map("curriculum_plans")
+}
+
+enum MilestoneCategory {
+  MOTOR
+  SPEECH
+  SOCIAL
+  COGNITIVE
+  SELF_CARE
+}
+
+enum MilestoneStatus {
+  NOT_YET
+  IN_PROGRESS
+  ACHIEVED
+}
+
+model Milestone {
+  id           String            @id @default(cuid())
+  tenantId     String
+  childId      String
+  category     MilestoneCategory
+  title        String
+  status       MilestoneStatus
+  assessedById String
+  assessedAt   DateTime          @default(now())
+  note         String?
+  mediaIds     String[]
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  child      Child  @relation(fields: [childId], references: [id], onDelete: Cascade)
+  assessedBy User   @relation("MilestoneAssessor", fields: [assessedById], references: [id])
+
+  @@index([tenantId, childId, category])
+  @@map("milestones")
+}
+
+// =========================================================================
+// 3.11 YORDAMCHI JADVALLAR
+// =========================================================================
+
+model Media {
+  id           String   @id @default(cuid())
+  tenantId     String
+  url          String
+  thumbUrl     String?
+  mimeType     String
+  sizeBytes    Int
+  width        Int?
+  height       Int?
+  durationSec  Int?
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  uploadedBy User   @relation("MediaUploader", fields: [uploadedById], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@map("media")
+}
+
+enum DocumentType {
+  CONTRACT
+  MEDICAL
+  BIRTH_CERT
+  CONSENT
+  OTHER
+}
+
+model Document {
+  id        String       @id @default(cuid())
+  tenantId  String
+  childId   String?
+  userId    String?
+  type      DocumentType
+  title     String
+  fileUrl   String
+  expiresAt DateTime?
+  createdAt DateTime     @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  child  Child? @relation(fields: [childId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, childId])
+  @@map("documents")
+}
+
+enum WaitlistStatus {
+  NEW
+  CONTACTED
+  TOUR_BOOKED
+  ENROLLED
+  REJECTED
+}
+
+model Waitlist {
+  id           String         @id @default(cuid())
+  tenantId     String
+  childName    String
+  birthDate    DateTime       @db.Date
+  parentName   String
+  parentPhone  String
+  desiredStart DateTime       @db.Date
+  groupId      String?
+  branchId     String?
+  status       WaitlistStatus @default(NEW)
+  source       String?
+  note         String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  group  Group?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
+  @@map("waitlists")
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  tenantId  String
+  userId    String
+  type      String
+  title     String
+  body      String
+  data      Json?
+  channels  String[]
+  sentAt    DateTime?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String?
+  action    String
+  entity    String
+  entityId  String
+  before    Json?
+  after     Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@map("audit_logs")
+}
+
+enum EventType {
+  HOLIDAY
+  MATINEE
+  MEETING
+  TRIP
+  CLOSED_DAY
+}
+
+model CalendarEvent {
+  id          String    @id @default(cuid())
+  tenantId    String
+  branchId    String?
+  date        DateTime  @db.Date
+  endDate     DateTime? @db.Date
+  title       String
+  type        EventType
+  description String?
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, date])
+  @@map("calendar_events")
+}
+
+model Subscription {
+  id            String    @id @default(cuid())
+  tenantId      String    @unique
+  plan          String
+  childrenLimit Int
+  pricePerMonth Decimal   @db.Decimal(14, 2)
+  status        String
+  nextBillingAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}

@@ -1,0 +1,42 @@
+@use './styles/tokens' as *;
+@use './styles/material-theme' as *;
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family-base);
+  background: var(--color-bg);
+  color: var(--color-text);
+  overflow-x: hidden;
+}
+
+// Bog'cha vibe — barcha panellar (owner/teacher/parent shell, login/OTP) shu klassni
+// o'z tashqi konteynerida ishlatadi, shunda fon bir joydan boshqariladi.
+.bogcha-bg {
+  background-color: var(--color-bg);
+  background-image: var(--bg-blobs);
+  background-attachment: fixed;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+// Barmoq bilan bosish uchun minimal maqsad o'lchami (7.2-bo'lim, 5-band)
+button,
+a,
+.mat-mdc-icon-button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+// Jonli kamera pleyeri uchun: yuklab olish/screenshot imkoniyatlarini cheklash
+video::-webkit-media-controls-download-button {
+  display: none !important;
+}

@@ -1,0 +1,25 @@
+# MediaMTX konfiguratsiyasi — RTSP kameralarni HLS/WebRTC ga aylantirish
+# To'liq parametrlar ro'yxati: https://github.com/bluenviron/mediamtx
+
+logLevel: info
+api: yes
+apiAddress: :9997
+
+rtspAddress: :8554
+rtspTransports: [tcp]
+
+hlsAddress: :8888
+hlsAlwaysRemux: no
+hlsVariant: lowLatency
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+
+webrtcAddress: :8889
+
+# Har bir stream ochilishidan oldin backend orqali ruxsat tekshiriladi.
+# NestJS `POST /internal/mediamtx/auth` endpointi cameraId + token ni tekshiradi.
+authMethod: http
+authHTTPAddress: http://api:3000/api/v1/internal/mediamtx/auth
+
+paths:
+  all_others:

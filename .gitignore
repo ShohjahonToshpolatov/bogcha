@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+.angular/
+coverage/
+*.log
+.env
+.env.*.local
+!.env.example
+.DS_Store
+Thumbs.db
+docker/nginx/certs/*.pem
+docker/nginx/certs/*.key
+api/uploads/*
+!api/uploads/.gitkeep

@@ -1,0 +1,64 @@
+// Bog'cham dizayn tokenlari (Texnik topshiriq, 7.1-bo'lim)
+// Yorug' mavzu — standart qiymatlar :root da e'lon qilinadi.
+:root {
+  --color-primary: #4f8ef7;
+  --color-primary-dark: #2e6bd6;
+  --color-accent: #ffb020;
+  --color-success: #2fb574;
+  --color-warning: #f5a524;
+  --color-danger: #e5484d;
+
+  --color-surface: #ffffff;
+  --color-bg: #fdf8ee;
+  --color-text: #1a2230;
+  --color-text-muted: #6b7789;
+  --color-border: #e9e1cf;
+
+  // Bog'cha vibe — asosiy fon ustiga qo'yiladigan yumshoq, o'yinqaroq rang dog'lari.
+  --bg-blobs:
+    radial-gradient(circle at 6% 10%, rgba(79, 142, 247, 0.12) 0%, transparent 42%),
+    radial-gradient(circle at 94% 14%, rgba(255, 176, 32, 0.16) 0%, transparent 40%),
+    radial-gradient(circle at 12% 88%, rgba(47, 181, 116, 0.13) 0%, transparent 38%),
+    radial-gradient(circle at 92% 90%, rgba(255, 176, 32, 0.10) 0%, transparent 36%),
+    radial-gradient(circle at 50% 50%, rgba(79, 142, 247, 0.05) 0%, transparent 60%);
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-full: 999px;
+
+  --font-family-base: 'Inter', 'Segoe UI', system-ui, sans-serif;
+
+  color-scheme: light;
+}
+
+:root[data-theme='dark'],
+:root:not([data-theme='light']) {
+  @media (prefers-color-scheme: dark) {
+    --color-surface: #1a2230;
+    --color-bg: #10151f;
+    --color-text: #f2f4f8;
+    --color-text-muted: #9aa5b5;
+    --color-border: #2a3444;
+    --bg-blobs:
+      radial-gradient(circle at 6% 10%, rgba(79, 142, 247, 0.10) 0%, transparent 42%),
+      radial-gradient(circle at 94% 14%, rgba(255, 176, 32, 0.08) 0%, transparent 40%),
+      radial-gradient(circle at 12% 88%, rgba(47, 181, 116, 0.08) 0%, transparent 38%),
+      radial-gradient(circle at 92% 90%, rgba(255, 176, 32, 0.06) 0%, transparent 36%);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --color-surface: #1a2230;
+  --color-bg: #10151f;
+  --color-text: #f2f4f8;
+  --color-text-muted: #9aa5b5;
+  --color-border: #2a3444;
+  --bg-blobs:
+    radial-gradient(circle at 6% 10%, rgba(79, 142, 247, 0.10) 0%, transparent 42%),
+    radial-gradient(circle at 94% 14%, rgba(255, 176, 32, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 12% 88%, rgba(47, 181, 116, 0.08) 0%, transparent 38%),
+    radial-gradient(circle at 92% 90%, rgba(255, 176, 32, 0.06) 0%, transparent 36%);
+  color-scheme: dark;
+}
